@@ -13,6 +13,9 @@ class ViewController: UIViewController {
     var hideKeyboardButton: UIButton?
     let hideKeyboardButtonWidth:CGFloat = 40
     let hideKeyboardButtonHeight:CGFloat = 30
+    
+    var keyboardAnimationDuration: Double = 0
+    var keyboardAnimationCurve: UInt = 0
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -42,13 +45,22 @@ class ViewController: UIViewController {
     */
     func keyboardDidShow(notification: NSNotification) {
         
+        let info  = notification.userInfo!
+        
+        keyboardAnimationDuration = info[UIKeyboardAnimationDurationUserInfoKey]!.doubleValue
+        keyboardAnimationCurve = UInt(info[UIKeyboardAnimationCurveUserInfoKey]!.intValue)
+        
         let frame = getKeyboardFrame(notification)
+        
+        if frame.h == 0 {
+            return
+        }
         
         var button: UIButton!
         if let btn = hideKeyboardButton {
             btn.removeFromSuperview()
         }
-
+        
         button = UIButton(frame: CGRectMake(frame.w - hideKeyboardButtonWidth, frame.y - hideKeyboardButtonHeight, hideKeyboardButtonWidth, hideKeyboardButtonHeight))
         button.setTitle("hide", forState: UIControlState.Normal)
         button.backgroundColor = UIColor(red: 173.0/255.0, green: 181.0/255.0, blue: 189.0/255.0, alpha: 1)
@@ -58,14 +70,13 @@ class ViewController: UIViewController {
         hideKeyboardButton = button
         
         let origCenter = button.center
-        let newCenter = CGPointMake(0, origCenter.y)
+        let newCenter = CGPointMake(origCenter.x, origCenter.y + hideKeyboardButtonHeight)
         
         button.center = newCenter
         
-
         self.view.addSubview(button)
         
-        UIView.animateWithDuration(0.5, animations: { () -> Void in
+        UIView.animateWithDuration(keyboardAnimationDuration, delay: 0, options: UIViewAnimationOptions(rawValue: keyboardAnimationCurve), animations: { () -> Void in
             button.alpha = 0.75
             button.center = origCenter
             }) { (finish) -> Void in
@@ -96,15 +107,25 @@ class ViewController: UIViewController {
         return (x,y,w,h)
     }
     
+    var hidingKeyboardFlag: Bool = false
+    
     /**
     onHideKeyboardButtonClick
     
     - parameter sender: sender
     */
     func onHideKeyboardButtonClick(sender: UIButton) {
+        
+        hidingKeyboardFlag = true
+        
         if let btn = hideKeyboardButton {
-            btn.alpha = 0
-            btn.removeFromSuperview()
+            UIView.animateWithDuration(keyboardAnimationDuration, delay: 0, options: UIViewAnimationOptions(rawValue: keyboardAnimationCurve), animations: { () -> Void in
+                btn.alpha = 0
+                btn.center = CGPointMake(btn.center.x, UIScreen.mainScreen().applicationFrame.height - self.hideKeyboardButtonHeight/2)
+                }) { (finish) -> Void in
+                    btn.removeFromSuperview()
+                    print("animate state = \(finish)")
+            }
         }
         self.view.endEditing(false)
     }
@@ -133,6 +154,12 @@ class ViewController: UIViewController {
     - parameter notification: notification
     */
     func keyboardWillHide(notification: NSNotification) {
+        
+        if hidingKeyboardFlag {
+            hidingKeyboardFlag = false
+            return
+        }
+        
         if let btn = hideKeyboardButton {
             btn.alpha = 0
             btn.removeFromSuperview()
